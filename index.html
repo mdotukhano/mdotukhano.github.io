@@ -16,6 +16,9 @@
 
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230A0A0A'/><path d='M8 23V9l8 8 8-8v14' stroke='%23D2FF00' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='24' cy='8' r='2' fill='%2300D4FF'/></svg>">
 
+    <!-- Preload the main portrait so browser fetches it ASAP, before CSS requests it -->
+    <link rel="preload" href="./photo-face.png" as="image">
+    <link rel="preload" href="./lw1.png" as="image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4140,6 +4143,35 @@
 
         }
 
+    
+        /* Portrait loading shimmer: blurred placeholder until photo-face.png is ready */
+        #portrait-shimmer {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            border-radius: inherit;
+            background: linear-gradient(110deg, #111 30%, #1c1c1c 50%, #111 70%);
+            background-size: 200% 100%;
+            animation: portraitShimmer 1.4s linear infinite;
+            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px);
+            opacity: 1;
+            transition: opacity 0.7s ease;
+            pointer-events: none;
+        }
+
+        #portrait-shimmer.loaded {
+            opacity: 0;
+        }
+
+        @keyframes portraitShimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #portrait-shimmer { animation: none; }
+        }
     </style>
 
 </head>
@@ -4313,6 +4345,7 @@
         <div class="chips-container hover-target reveal" style="transition-delay: 0.5s">
 
             <div class="portrait-wrap" id="hero-portrait">
+                <div id="portrait-shimmer" aria-hidden="true"></div>
 
                 <div class="portrait-base portrait-layer"></div>
 
@@ -5433,6 +5466,15 @@
             const maxTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
 
             const imagesLoaded = Promise.all(criticalImages.map(preloadImage));
+
+            // Reveal the portrait only when the main face image has actually loaded
+            // (or after 8s, so the shimmer can never get stuck forever)
+            const shimmerEl = document.getElementById('portrait-shimmer');
+            const hideShimmer = () => { if (shimmerEl) shimmerEl.classList.add('loaded'); };
+            Promise.race([
+                preloadImage('./photo-face.png'),
+                new Promise((resolve) => setTimeout(resolve, 8000))
+            ]).then(hideShimmer);
 
 
 
